@@ -4,3 +4,6 @@
 [submodule "rocksdb"]
 	path = packs_lib/rocksdb/rocksdb
 	url = https://github.com/facebook/rocksdb
+[submodule "packs_sys/eggdrop"]
+	path = packs_sys/eggdrop
+	url = https://github.com/logicmoo/eggdrop
