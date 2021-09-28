@@ -1,5 +1,0 @@
-
-:- expects_dialect(pfc).
-
-
-

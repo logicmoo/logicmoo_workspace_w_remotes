@@ -1,2 +1,0 @@
-
-everythingPSC::residesIn(aD,townhomeOfEAM).

@@ -10,3 +10,9 @@
 [submodule "packs_sys/wam_common_lisp"]
 	path = packs_sys/wam_common_lisp
 	url = https://github.com/logicmoo/wam_common_lisp
+[submodule "packs_sys/logicmoo_utils"]
+	path = packs_sys/logicmoo_utils
+	url = https://github.com/logicmoo/logicmoo_utils
+[submodule "packs_sys/pfc"]
+	path = packs_sys/pfc
+	url = https://github.com/logicmoo/pfc

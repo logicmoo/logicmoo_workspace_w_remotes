@@ -1,7 +1,0 @@
-% -*-Prolog-*-
-
-:- expects_dialect(pfc).
-
-==> parent(adam,abel).
-==> parent(abel,enoch).
-==> gender(abel,male).

@@ -1,7 +1,0 @@
-% is this how to define constraints?
-
-:- expects_dialect(pfc).
-
-either(P,Q) ==> (~P ==> Q), (~Q ==> P).
-
-(P,Q ==> false) ==> (P ==> ~Q), (Q ==> ~P).
