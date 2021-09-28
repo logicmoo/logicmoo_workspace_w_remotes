@@ -7,3 +7,6 @@
 [submodule "packs_sys/eggdrop"]
 	path = packs_sys/eggdrop
 	url = https://github.com/logicmoo/eggdrop
+[submodule "packs_sys/wam_common_lisp"]
+	path = packs_sys/wam_common_lisp
+	url = https://github.com/logicmoo/wam_common_lisp
