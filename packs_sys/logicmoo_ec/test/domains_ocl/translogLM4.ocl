@@ -1,4 +1,0 @@
-:- include(translog4_domain).
-:- include(translog4_ops).
-:- include(translog4_problems).
-

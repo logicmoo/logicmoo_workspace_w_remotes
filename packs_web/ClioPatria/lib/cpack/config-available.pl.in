@@ -1,5 +1,0 @@
-:- module(conf_@NAME@, []).
-
-/** <module> @TITLE@
-*/
-

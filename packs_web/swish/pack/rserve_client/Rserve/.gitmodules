@@ -1,3 +1,0 @@
-[submodule "src/client/java"]
-	path = src/client/java
-	url = https://github.com/s-u/REngine.git

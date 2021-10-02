@@ -1,8 +1,0 @@
-header=":- include('dir.header')."
-
-for file in "$@"
-do
-    sed -i -e "1i\
-$header" $file
-done
-

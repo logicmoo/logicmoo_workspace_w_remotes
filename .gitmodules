@@ -7,15 +7,60 @@
 [submodule "packs_sys/eggdrop"]
 	path = packs_sys/eggdrop
 	url = https://github.com/logicmoo/eggdrop
-[submodule "packs_sys/wam_common_lisp"]
-	path = packs_sys/wam_common_lisp
-	url = https://github.com/logicmoo/wam_common_lisp
-[submodule "packs_sys/logicmoo_utils"]
-	path = packs_sys/logicmoo_utils
-	url = https://github.com/logicmoo/logicmoo_utils
+[submodule "packs_sys/dictoo"]
+	path = packs_sys/dictoo
+	url = https://github.com/logicmoo/dictoo
 [submodule "packs_sys/pfc"]
 	path = packs_sys/pfc
 	url = https://github.com/logicmoo/pfc
+[submodule "packs_sys/predicate_streams"]
+	path = packs_sys/predicate_streams
+	url = https://github.com/logicmoo/predicate_streams
+[submodule "packs_sys/logicmoo_base"]
+	path = packs_sys/logicmoo_base
+	url = https://github.com/logicmoo/logicmoo_base
 [submodule "packs_sys/logicmoo_cg"]
 	path = packs_sys/logicmoo_cg
 	url = https://github.com/logicmoo/logicmoo_cg
+[submodule "packs_sys/logicmoo_ec"]
+	path = packs_sys/logicmoo_ec
+	url = https://github.com/logicmoo/logicmoo_ec
+[submodule "packs_sys/logicmoo_nlu"]
+	path = packs_sys/logicmoo_nlu
+	url = https://github.com/logicmoo/logicmoo_nlu
+[submodule "packs_sys/prologmud"]
+	path = packs_sys/prologmud
+	url = https://github.com/logicmoo/prologmud
+[submodule "packs_sys/prologmud_samples"]
+	path = packs_sys/prologmud_samples
+	url = https://github.com/logicmoo/prologmud_samples
+[submodule "packs_sys/wam_common_lisp"]
+	path = packs_sys/wam_common_lisp
+	url = https://github.com/logicmoo/wam_common_lisp
+[submodule "packs_sys/logicmoo_nars"]
+	path = packs_sys/logicmoo_nars
+	url = https://github.com/logicmoo/logicmoo_nars
+[submodule "packs_sys/slack_prolog"]
+	path = packs_sys/slack_prolog
+	url = https://github.com/logicmoo/slack_prolog
+[submodule "packs_sys/sigma_ace"]
+	path = packs_sys/sigma_ace
+	url = https://github.com/logicmoo/sigma_ace
+[submodule "packs_sys/swicli"]
+	path = packs_sys/swicli
+	url = https://github.com/logicmoo/swicli
+[submodule "packs_sys/logicmoo_utils"]
+	path = packs_sys/logicmoo_utils
+	url = https://github.com/logicmoo/logicmoo_utils
+[submodule "packs_web/logicmoo_webui"]
+	path = packs_web/logicmoo_webui
+	url = https://github.com/logicmoo/logicmoo_webui
+[submodule "packs_web/swish"]
+	path = packs_web/swish
+	url = https://github.com/logicmoo/swish
+[submodule "packs_web/ClioPatria"]
+	path = packs_web/ClioPatria
+	url = https://github.com/logicmoo/ClioPatria
+[submodule "packs_sys/logicmoo_lps"]
+	path = packs_sys/logicmoo_lps
+	url = https://github.com/logicmoo/logicmoo_lps
