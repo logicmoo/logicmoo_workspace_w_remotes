@@ -6,12 +6,34 @@
         discord_get_websocket/1,
         is_thread_running/1,
         discord_ensure_im/2,
-        name_to_id/2
+        any_to_id/2
         ]).
 
 /** <module> discord_client - Provides a websocket API to write discord clients
 
 */
+
+:- multifile(tmp:discord_info/3).
+:- volatile(tmp:discord_info/3).
+:- dynamic(tmp:discord_info/3).
+reload_discord_info:- reconsult(guild_info_file).
+load_discord_info:- exists_file(guild_info_file)->consult(guild_info_file);true.
+clear_discord_info:- retractall(tmp:discord_info/3).
+save_discord_info:- 
+  tell(guild_info_file),
+  format('
+:- multifile(tmp:discord_info/3).
+:- volatile(tmp:discord_info/3).
+:- dynamic(tmp:discord_info/3).
+'),
+  R= discord_info(_,_,_),
+  TmpR=tmp:R,  
+  forall(TmpR,format('~q.~n',[TmpR])),
+  told.
+:- at_halt(save_discord_info).
+:- load_discord_info.
+
+disable_gateway.  % true until we fix our websocket code
 
 
 :- use_module(library(http/http_open)).
@@ -22,6 +44,11 @@
 :- use_module(library(http/json_convert)).
 :- use_module(library(http/websocket)).
 
+discord_grouping(messages).
+discord_grouping(channels).
+discord_grouping(roles).
+discord_grouping(members).
+discord_grouping(guilds).
 
 :- if(exists_source(library(dicts))).
 	:- use_module(library(dicts)).
@@ -39,7 +66,7 @@
 % url	A WebSocket Message Server URL.
 :- oo_class_field(url).
 
-% self	The authenticated bot user.
+% '@me'	The authenticated bot user.
 :- oo_inner_class_begin(clients).
 
 discord_client:clients:new(Ref):- throw(clients:new(Ref)).
@@ -48,9 +75,9 @@ discord_client:clients:new(Ref):- throw(clients:new(Ref)).
 
 
 
-% self	The authenticated bot user.
-:- oo_inner_class_begin(self).
-:- oo_inner_class_end(self).
+% '@me'	The authenticated bot user.
+:- oo_inner_class_begin('@me').
+:- oo_inner_class_end('@me').
 
 % guild	Details on the authenticated user's guild.
 :- oo_inner_class_begin(guild).
@@ -66,8 +93,8 @@ discord_client:clients:new(Ref):- throw(clients:new(Ref)).
 :- oo_inner_class_end(channels).
 
 % roles	A hash of role objects, one for every role the authenticated user is in.
-:- oo_inner_class_begin(self).
-:- oo_inner_class_end(self).
+:- oo_inner_class_begin('@me').
+:- oo_inner_class_end('@me').
 
 % ims	A hash of IM objects, one for every direct message channel visible to the authenticated user.
 :- oo_inner_class_begin(chats).
@@ -82,8 +109,8 @@ discord_client:clients:new(Ref):- throw(clients:new(Ref)).
 :- oo_inner_class_end(text).
 
 % debug	Debugger fidling.
-:- oo_inner_class_begin(self).
-:- oo_inner_class_end(self).
+:- oo_inner_class_begin(debug).
+:- oo_inner_class_end(debug).
 
 % events	Registered callbacks.
 :- oo_inner_class_begin(events).
@@ -124,7 +151,7 @@ nop(_).
 
 if_debug(_).
 
-ddbg(O):- wdmsg(O).
+ddbg(O):- into_dbg_string(O,OO),dmsg(OO).
 %ddbg(F,Args):- if_debug((fresh_line, format(user_error,F,Args))).
 
 is_thread_running(ID):-
@@ -182,37 +209,44 @@ channels:- guilds,
 
 
 :- flag(op_1,_,0).
-discord_ping_op_1:- sleep(41),flag(op_1,X,X+1),discord_send({"op": 1,"d": X}),discord_ping_op_1.
+discord_ping_op_1:- disable_gateway,!.
+discord_ping_op_1:- sleep(41),discord_send({"op": 1,d: $seq}),discord_ping_op_1.
 
 % should return wss://gateway.discord.gg
-discord_get_websocket_url('wss://gateway.discord.gg/?v=9&encoding=json'):-!.
+discord_get_websocket_url('wss://gateway.discord.gg/'):-!.
 discord_get_websocket_url(URL):- discord_http(gateway), get_discord(url,URL).
 
-into_discord_url_prop(UCmd,Prop):- atomic_list_concat(List,'/',UCmd),last(List,Prop).
+into_discord_url_object(UCmd,Prop):- atomic_list_concat([_,I|ST],'/',UCmd),last([I|ST],Prop2),!,into_discord_url_object(Prop2,Prop).
+into_discord_url_object(UCmd,Prop):- atomic_list_concat([Prop2,_|_],'?',UCmd),!,into_discord_url_object(Prop2,Prop).
+into_discord_url_object(Prop,Prop).
 
 
 discord_http(Cmd):- discord_http(Cmd,[]),!.
 discord_http(Cmd,Opts):-
  must_det_l((
   into_discord_url(Cmd,UCmd),
-  into_discord_url_prop(UCmd,Prop),
+  into_discord_url_object(UCmd,Prop),
+  discord_http(Prop,Cmd,Opts))).
+
+discord_http(Prop,Cmd,Opts):-
+ must_det_l((
+  into_discord_url(Cmd,UCmd),
   bot_discord_token(TokenHeader),
   sformat(URL,'https://discord.com/api/v9/~w',[UCmd]))),
-  wdmsg(URL=Opts),
+  %wdmsg(URL=Opts),
   http_open(URL, In, [status_code(Status), 
           request_header('Authorization'=TokenHeader), 
           request_header('User-Agent'='DiscordBot'),
           request_header('Content-Type'='application/json')|Opts]),
-  ignore((Status\==200,wdmsg(status_code=Status))),
+  ignore((Status\==200,dmsg(status_code=Status))),
   must_det_l((json_read_dict(In,Term), close(In), discord_receive(Prop,Term))),
   nop(listing(tmp:discord_info/3)),!.
 
 
 
 into_discord_url(A,O):- \+ compound(A),!,A=O.
-into_discord_url('$'(A),O):- !, get_discord(A,M),into_discord_url(M,O).
+into_discord_url('$'(A),O):- !, get_discord(A,M),into_discord_url(M,O),!.
 into_discord_url(A / B,O):- !, into_discord_url(A,AA),into_discord_url(B,BB),!,sformat(O,"~w/~w",[AA,BB]).
-into_discord_url('-'(A , B),O):- !, get_discord(A,B,M),into_discord_url(M,O).
 into_discord_url({A - B},O):- !, get_discord(A,B,M),into_discord_url(M,O).
 into_discord_url(A,O):- A=O.
 
@@ -257,7 +291,7 @@ discord_propname(Type,Key,NewType):- skip_propname(Type),!,discord_propname(Key,
 discord_propname(Key,Type,NewType):- skip_propname(Type),!,discord_propname(Key,NewType).
 discord_propname(_Type,Key,NewType):-discord_propname(Key,NewType).
 
-
+discord_start_listener:- disable_gateway,!.
 discord_start_listener:- is_thread_running(discord_start_listener),!,mmake.
 discord_start_listener:- thread_create(discord_listener_proc,_,[alias(discord_start_listener)]),!.
 
@@ -301,7 +335,7 @@ discord_event(im_open,Dict):- is_dict(Dict),
   Dict.user=User,
   undict(IDI,ID),
   string_to_atom(ID,IDA),
-  add_discord_info(ims, hasValue- IDA),
+  add_discord_info(ims, hasInstance- IDA),
   add_discord_info(IDA, id- ID),
   add_discord_info(IDA, user-User).
 
@@ -320,7 +354,7 @@ discord_receive(Type,Data):- ddbg((discord_receive(Type,Data))),fail.
 discord_receive(Type,Data):- add_discord_info(Type,Data),fail.
 
 discord_receive(hello,_Data):- % discord_send({op:11}), 
-   discord_send({op:1,"d":null}),!,discord_identify. %heartbeat_ack
+   sleep(1),discord_send({op:1,d:null}),!,discord_identify. 
 
 discord_receive(Type,Data):- (string(Data),(string_to_dict(Data,Dict)->true;string_to_atom(Data,Dict)))->discord_receive(Type,Dict),!.
 discord_receive(Type,Data):- discord_propname(Type,NewType)-> Type\==NewType,!,discord_receive(NewType,Data).
@@ -334,7 +368,7 @@ discord_receive(_Type,_Data).
 request_members:- 
 discord_send({
   "op": 8,
-  "d": {
+  d: {
     "guild_id": $guild_id,
     "query": "",
     "limit": 0
@@ -343,37 +377,23 @@ discord_send({
 
 discord_identify:- 
  discord_send(
-  {
-  "op": 2,
-  "d": {
-    "token": $token,
-    "properties": {
-      "$os": "linux",
-      "$browser": "disco",
-      "$device": "disco"
-    },
-    "compress?": false,
-    "large_threshold?": 250,
-    "shard?": [0, 1],
-    "presence": {
-      "activities": [{
-        "name": "irc0",
-        "type": 0
-      }],
-      "status": "dnd",
-      "since": $time,
-      "afk": false
-    },
-   % // This intent represents 1 << 0 for GUILDS, 1 << 1 for GUILD_MEMBERS, and 1 << 2 for GUILD_BANS
-   % // This connection will only receive the events defined in those three intents
-    "intents": 7
+  _{
+  'op': 2,
+  d: _{
+    'token': $token,
+    'properties': _{
+      '$os': "linux",
+      '$browser': "disco",
+      '$device': "disco"
+    }, 
+  'intents': 65535
   }
 }).
 
 discord_resume:- 
  discord_send( {
   "op": 6,
-  "d": {
+  d: {
     "token": $token,
     "session_id": $session_id,
     "seq": $seq
@@ -382,7 +402,6 @@ discord_resume:-
 
 
 
-:- dynamic(tmp:discord_info/3).
 
 discord_inform(Type,Data):-is_dict(Data),Data.Key=ID,Key=id,!,string_to_atom(ID,Atom),
    add_discord_info(Type,Atom-Data).
@@ -400,27 +419,11 @@ discord_inform(Type,Key-Data):- atomic(Data),!,add_discord_info(Type,Key-Data).
 discord_inform(Type,Key-Data):- is_dict(Data),dict_pairs(Data,Tag,Pairs),maplist(discord_receive(Type-Key-Tag),Pairs).
 discord_inform(Type,Key-Data):- add_discord_info(Type,Key-Data).
 
-post_message:- post_message(_,'From Prolog').
-post_message(Channel,Msg):- 
- channel_to_id(Channel,ID), 
- any_to_string(Msg,Str),
-  Dict=
-    _{username: "irc0", content: Str,
-       avatar : "98fb2a9b870148862265b65d02b5d200",
-    %embeds: [_{ title: "Hello, Embed!", description: "This is an embedded message."},
-    tts: false},
- %sformat(S,'~q',[Dict]),
- %ddbg(post=S),
- discord_http(channels/ID/messages,[post(json(Dict))]).
 
 % https://discord.com/oauth2/authorize?response_type=code&client_id=157730590492196864&scope=identify+guilds.join&state=15773059ghq9183habn&redirect_uri=https%3A%2F%2Fgoogle.com&prompt=consent
-get_messages:- get_messages(_,_).
-get_messages(Channel,_Msg):- channel_to_id(Channel,ID), 
- %any_to_string(Msg,Str),
- discord_http(channels/ID/messages).
+rtrv_messages:- forall(channel_to_id(_Channel,ID),  (sleep(1),discord_http(channels/ID/'messages?limit=3'))).
+rtrv_messages(Channel):- channel_to_id(Channel,ID),  discord_http(channels/ID/messages).
 
-
-channel_to_id(_Channel,892806433970716692).
 get_kv(K:V,K,V):- must(nonvar(K);throw(get_kv(K:V,K,V))).
 get_kv(K-V,K,V).
 get_kv(K=V,K,V).
@@ -430,7 +433,7 @@ get_kv(K=V,K,V).
 
 
 add_discord_info(Type,Pairs):- is_list(Pairs),select(KV,Pairs,Rest),get_kv(KV,id,ID),!,
-  add_discord_info3(ID,isa,Type), add_discord_info3(Type,hasValue,ID),
+  add_discord_info3(ID,isa,Type), add_discord_info3(Type,hasInstance,ID),
   add_discord_info3(ID,id,ID),
   add_discord_info(ID,Rest).
 add_discord_info(Type,Pairs):- is_list(Pairs), Pairs\==[], !, maplist(add_discord_info(Type),Pairs).
@@ -438,69 +441,141 @@ add_discord_info(Type,Pairs):- is_list(Pairs), Pairs\==[], !, maplist(add_discor
 add_discord_info(Type,KV):- get_kv(KV,K,V),!,add_discord_info3(Type,K,V).
 add_discord_info(Type,Data):- is_dict(Data),dict_pairs(Data,_Tag,Pairs),!,add_discord_info(Type,Pairs).
 add_discord_info(Type,Data):- %retractall(tmp:discord_info(Type,_,_)),
-  add_discord_info3(Type,hasValue,Data).
+  add_discord_info3(Type,hasInstance,Data).
 
 
-from_string(S,V):- string(S),atom_number(S,V),!.
-from_string(S,V):- atom(S),atom_number(S,V),!.
+%753344235805343785
+int_to_name(S,V):- S>1420070400,get_time(T),TT is T + 6000,TT>S,stamp_date_time(S,Date,local),!,
+  format_time(string(V),'[%a, %d %b %Y %T PST]',Date,posix).
+int_to_name(S,V):- tmp_discord_info(S,name,V),!.
+int_to_name(S,V):- tmp_discord_info(S,username,V),!.
+%int_to_name(S,V):- tmp_discord_info(V,content,S),!.
+int_to_name(S,V):- S> 4194304, id_to_time(S,T),int_to_name(T,TT),sformat(V,'<~q~w>',[S,TT]).
+
+into_dbg_string(S,V):- compound(S), compound_name_arguments(S,F,As),maplist(into_dbg_string,As,AAs),!,compound_name_arguments(V,F,AAs).
+into_dbg_string(S,V):- string(S), catch(atom_number(S,N),_,fail), !, into_dbg_string(N,V).
+into_dbg_string(S,V):- number(S), int_to_name(S,V),!.
+into_dbg_string(V,V).
+
+from_string(S,V):- compound(S), compound_name_arguments(S,F,As),maplist(from_string,As,AAs),!,compound_name_arguments(V,F,AAs).
+from_string(S,V):- \+ string(S), \+ atom(S), !, V=S.
+from_string(S,V):- atom_length(S,L),L>40,!,S=V.
+from_string(S,V):- \+ atom(S), text_to_string(S,SS),string_to_atom(SS,A),catch(atom_number(A,V),_,fail),!.
+from_string(S,V):- parse_time(S,_,V),!.
 from_string(V,V).
+
+id_to_time(ID,UTC):- integer(ID), UTC is (( ID >> 22) / 1000) + 1420070400.
   
-add_discord_info3(ID,Prop,Data):-
-  from_string(ID,ID2),
-  from_string(Data,Data2),
-  R= tmp:discord_info(ID2,Prop,Data2),
- asserta(R),
- ddbg(asserta(R)).
+add_discord_info3(ID,Prop,Data):- 
+  from_string(ID,ID2), from_string(Prop,Prop2), from_string(Data,Data2),!,
+  add_discord_info4(ID2,Prop2,Data2).
 
+add_discord_info4(_,Prop,Data):- default_info(Prop,Data),!.
+add_discord_info4(ID,Prop,Data):-
+  TmpR=tmp:R,
+  R= discord_info(ID,Prop,Data),
+  (\+ \+ call(TmpR) -> (retract(TmpR),assert(TmpR)) ; (asserta(TmpR),dmsg(TmpR))).
+
+get_discord(ID,Data):- tmp_discord_info(ID,hasInstance,Data).
+get_discord(ID,Prop,Value):- tmp_discord_info(ID,Prop,Value)*->true;get_discord2(ID,Prop,Value).
+
+get_discord2(Type,Prop,Value):- tmp_discord_info(Type,hasInstance,ID),tmp_discord_info(ID,Prop,Value).
+
+get_discord_info(ID,Prop,Data):- tmp_discord_info(ID,Prop,Data)*-> true;
+  (\+ integer(ID), \+ var(ID), any_to_id(ID,ID2),!, tmp_discord_info(ID2,Prop,Data)).
+
+%check_unifier(U1,U2):- nonvar(U1),var(U2),!,freeze(U2,check_unifier_final(U1,U2)).
+%check_unifier(U2,U1):- nonvar(U1),var(U2),!,freeze(U2,check_unifier_final(U1,U2)).
+%check_unifier(U2,U1):- var(U1),var(U2),!,freeze(U2,check_unifier_final(U1,U2)). 
+check_unifier(U1,U2):- var(U1),!,check_unifier_var_1(U1,U2).
+check_unifier(U2,U1):- var(U1),!,check_unifier_var_1(U1,U2).
+check_unifier(U1,U2):- check_unifier_final(U1,U2).
+
+check_unifier_var_1(U1,U2):- nonvar(U2),!,U1=U2.
+check_unifier_var_1(U1,U2):- \+ frozen(U2,_), !, freeze(U2,check_unifier(U1,U2)).
+check_unifier_var_1(U1,U2):- U1=U2.
+
+
+check_unifier_final(U1,U2):- any_to_each(U1,ID1),any_to_each(U2,ID2),ID1==ID2,!.
+
+any_to_each(U1,U1).
+any_to_each(U1,Each):- nonvar(U1), any_to_each_1(U1,Each), U1\==Each.
+
+any_to_each_1(U1,Each):- catch(text_to_string(U1,Each),_,fail).
+any_to_each_1(U1,Each):- term_to_atom(U1,Each). 
+any_to_each_1(U1,Each):- from_string(U1,Each), \+ integer(Each).
+any_to_each_1(U1,Each):- any_to_id(U1,Each).
+
+
+discord_name_id_type(Name,ID,Type):- nonvar(Type),  !,
+  (tmp_discord_info(Type,hasInstance,ID)*->true;tmp_discord_info(ID,isa,Type)),
+  once(tmp_discord_info(ID,name,Name);tmp_discord_info(ID,username,Name)).
 discord_name_id_type(Name,ID,Type):- 
-  get_discord(ID,name,Name),
-  get_discord(ID,isa,Type).
+  (tmp_discord_info(ID,username,Name);tmp_discord_info(ID,name,Name)),
+  integer(ID),
+  once(tmp_discord_info(Type,hasInstance,ID);tmp_discord_info(ID,isa,Type)).
 
-get_discord(ID,Data):- get_discord_info(ID,hasValue,Data).
-get_discord(ID,Prop,Value):- get_discord_info(ID,Prop,Value).
-get_discord(Type,Prop,Value):- get_discord_info(Type,hasValue,ID),get_discord_info(ID,Prop,Value).
-
-get_discord_info(Type,ID,Data):- into_dtypes(Type,Type2),into_dtypes(ID,ID2),into_dtypes(Data,Data2),
-  tmp:discord_info(Type2,ID2,Data2).
-
-into_dtypes(Type,Type):- var(Type),!.
-into_dtypes(Type,Type):- nonvar(Type).
-into_dtypes(Type,Type2):- \+ string(Type), atom_string(Type,Type2).
-into_dtypes(Type,Type2):- \+ atom(Type), atom_string(Type2,Type).
+tmp_discord_info(A,B,C):- tmp:discord_info(A,B,C).
+  %get_discord(Type,hasInstance,ID),
+  %get_discord(ID,id,ID),
+  %true.872902388623757364
 
 
-name_to_id(Name,ID):-text_to_string(Name,NameS),get_discord(ID,name,NameS),guild\==ID,!.
-%name_to_id(Name,ID):-text_to_string(Name,NameS),get_discord(_,hasValue,ID), get_discord(ID,_,NameS),!.
+channel_to_id(Name,ID):- discord_name_id_type(Name,ID,channels).
+%channel_to_id("prologmud_server",892806433970716692).
+%channel_to_id(Name,ID):- any_to_id(Name,ID).
 
-same_ids(ID,IDS):-text_to_string(ID,IDA),text_to_string(IDS,IDB),IDA==IDB.
+any_to_id(Name,ID):-var(Name),!, fail,ID=Name.
+any_to_id(Name,ID):-integer(Name),ID=Name.
+any_to_id(Name,ID):-catch(text_to_string(Name,NameS),_,fail),discord_name_id_type(NameS,ID,_),integer(ID),!.
+any_to_id(Name,ID):-from_string(Name,ID),integer(ID),!.
+%any_to_id(Name,ID):-text_to_string(Name,NameS),get_discord(_,hasInstance,ID), get_discord(ID,_,NameS),!.
+
+same_ids(ID,IDS):-any_to_id(ID,IDA),any_to_id(IDS,IDB),IDA==IDB.
 
 discord_ensure_im2(ID,IM):- get_discord(IM,user,ID),!.
 
 discord_ensure_im(To,IM):- get_discord(IM, name, To), get_discord(IM, is_channel, true),!.
-discord_ensure_im(To,IM):- name_to_id(To,ID),!, discord_ensure_im(ID,IM).
+discord_ensure_im(To,IM):- any_to_id(To,ID),!, discord_ensure_im(ID,IM).
 discord_ensure_im(To,IM):- discord_ensure_im2(To,IM),!.
-% OLD discord_ensure_im(To,IM):- name_to_id(To,ID), discord_send({type:'im_open',user:ID}),!,must(discord_ensure_im2(To,IM)),!.
+% OLD discord_ensure_im(To,IM):- any_to_id(To,ID), discord_send({type:'im_open',user:ID}),!,must(discord_ensure_im2(To,IM)),!.
 discord_ensure_im(To,IM):- discord_send({type:'conversations_open',users:To}),!,must(discord_ensure_im2(To,IM)),!.
 
 
 discord_id_time(ID,TS):-flag(discord_id,OID,OID+1),ID is OID+1,get_time(Time),number_string(Time,TS).
 
 
-discord_self(Self):-get_discord(self, id, Self).
+discord_me(Self):-get_discord('@me', id, Self).
 
 %  {"id":2,"type":"ping","time":1484999912}
 discord_ping :- discord_id_time(ID,_),get_time(Time),TimeRnd is round(Time),discord_send({"id":ID,"type":"ping", "time":TimeRnd}).
 
-% {"id":3,"type":"message","channel":"D3U47CE4W","text":"hi there"}
-discord_say :- discord_say('#prologmud_server',"test message to logicmoo").
-discord_say2:- discord_say(dmiles,"test message to dmiles").
-discord_say3:- discord_say(general,"test message to general channel").
 
 find_discord_info(Str):-
  forall(tmp:discord_info(X,Y,Z),
  ignore((sformat(S,'~q.',[tmp:discord_info(X,Y,Z)]),sub_string(S, _Offset0, _Length, _After, Str),
    ddbg(S)))).
 
+%discord_say:- discord_say(_,'From Prolog').
+% {"id":3,"type":"message","channel":"D3U47CE4W","text":"hi there"}
+discord_say :- discord_say('#prologmud_server',"test message to logicmoo").
+discord_say2:- discord_say(dmiles,"test message to dmiles").
+discord_say3:- discord_say(general,"test message to general channel").
+% https://discord.com/oauth2/authorize?client_id=772113231757574185&scope=bot&permissions=268823638
+discord_say(Channel,Msg):- 
+ any_to_id(Channel,ID), 
+ any_to_string(Msg,Str),
+ % Nick = 'some1',
+ % atomic_string_concat(Str,StrO),
+ Str=StrO,
+  Dict=
+    _{username: "irc0", content: StrO,
+       avatar : "98fb2a9b870148862265b65d02b5d200",
+    %embeds: [_{ title: "Hello, Embed!", description: "This is an embedded message."},
+    tts: false},
+ %sformat(S,'~q',[Dict]),
+ %ddbg(post=S),
+ discord_http(channels/ID/messages,[post(json(Dict))]).
 discord_say(To,Msg):-
   discord_ensure_im(To,IM),
   discord_send_im(IM,'irc0',Msg).
@@ -543,10 +618,6 @@ discord_history(To,History):- discord_ensure_im(To,IM),
 
 bot_discord_token(TokenHeader):- discord_token(Token),sformat(TokenHeader,"Bot ~w",[Token]).
 
-:- bot_discord_token(TokenHeader), add_discord_info(token,TokenHeader).
-:- get_time(Time), ITime is integer(Time), add_discord_info(time,ITime).
-
-
 
 string_to_dict:-
  string_to_dict("{\"type\":\"dnd_updated_user\",\"user\":\"U3T3R279S\",\"dnd_status\":{\"dnd_enabled\":false,\"next_dnd_start_ts\":1,\"next_dnd_end_ts\":1},\"event_ts\":\"1485012634.280271\"}",Dict),
@@ -588,20 +659,25 @@ discord_send_ws(WebSocket,Data):- tmp:discord_websocket(WebSocket, _WsInput, WsO
 discord_send_ws(WsOutput,Data):- format(WsOutput,'~q',[Data]),flush_output(WsOutput),ddbg(discord_sent(Data)),flush_output.
 
 
-dict_to_curly(Dict,{type:Type,Data}):- del_dict(type,Dict,Type,DictOut),dict_pairs(DictOut,_,Pairs),any_to_curls(Pairs,Data).
-dict_to_curly(Dict,{type:Type,Data}):- dict_pairs(Dict,Type,Pairs),nonvar(Type),any_to_curls(Pairs,Data).
-dict_to_curly(Dict,{Data}):- dict_pairs(Dict,_,Pairs),any_to_curls(Pairs,Data).
+%dict_to_curly(Dict,{type:Type,Data}):- del_dict(type,Dict,Type,DictOut),dict_pairs(DictOut,_,Pairs),any_to_curls(Pairs,Data).
+%dict_to_curly(Dict,{type:Type,Data}):- dict_pairs(Dict,Type,Pairs),nonvar(Type),any_to_curls(Pairs,Data).
+dict_to_curly(Dict,{Data}):- dict_pairs(Dict,_,Pairs),list_to_curls(Pairs,Data).
 
-any_to_curls(Dict,Out):- is_dict(Dict),!,dict_to_curly(Dict,Data),any_to_curls(Data,Out).
+list_to_curls([A],AA):-!,any_to_curls(A,AA).
+list_to_curls([A|B],(AA,BB)):-!,any_to_curls(A,AA),list_to_curls(B,BB).
+
+any_to_curls(Dict,Data):- is_dict(Dict),!,dict_to_curly(Dict,Data).
 any_to_curls(Var,"var"):- \+ must(\+ var(Var)),!.
-any_to_curls('$'(Var),Val):- get_discord(Var,Val),!. 
+any_to_curls(null,null).
+any_to_curls(true,true).
+any_to_curls(false,false).
+any_to_curls(KV,AA:BB):-get_kv(KV,A,B),!,any_to_curls(A,AA),any_to_curls(B,BB).
+any_to_curls('$'(Var),ValO):- get_discord(Var,Val),!,any_to_curls(Val,ValO).
 any_to_curls({DataI},{Data}):-!,any_to_curls(DataI,Data).
 any_to_curls((A,B),(AA,BB)):-!,any_to_curls(A,AA),any_to_curls(B,BB).
-any_to_curls([A|B],(AA,BB)):-!,any_to_curls(A,AA),any_to_curls(B,BB).
-any_to_curls([A],AA):-!,any_to_curls(A,AA).
-any_to_curls(KV,AA:BB):-get_kv(KV,A,B),!,any_to_curls(A,AA),any_to_curls(B,BB).
-any_to_curls(A,AA):- catch(text_to_string(A,AA),_,fail),!.
-any_to_curls(A,A).
+any_to_curls(A,O):- string(A),!,from_string(A,O).
+any_to_curls(A,O):- catch(text_to_string(A,AA),_,fail),!,any_to_curls(AA,O).
+any_to_curls(A,O):- from_string(A,O).
 
 gw_op(0,'dispatch','receive','an event was dispatched.').
 gw_op(1,'heartbeat',_,'fired periodically by the client to keep the connection alive.').
@@ -615,9 +691,60 @@ gw_op(9,'invalid session','receive','the session has been invalidated. you shoul
 gw_op(10,'hello','receive','sent immediately after connecting and contains the heartbeat_interval to use.').
 gw_op(11,'heartbeat_ack','receive','sent in response to receiving a heartbeat to acknowledge that it has been received.').
 
+default_guild(748871194572226661).
+
+no_default_info(topic).
+no_default_info(position).
+no_default_info(parent_id).
+no_default_info(hasInstance).
+
+
+default_info(X,_):- nonvar(X), no_default_info(X),!,fail.
+default_info(flags,0). % probably this doesnt belong
+default_info(accent_color,null).
+default_info(attachments,[]).
+default_info(avatar,null).
+default_info(banner,null).
+default_info(banner_color,null).
+default_info(components,[]).
+default_info(edited_timestamp,null).
+default_info(embeds,[]).
+default_info(guild_id,GuildID):- default_guild(GuildID).
+default_info(last_message_id,null).
+default_info(mention_everyone,false).
+default_info(mention_roles,[]).
+default_info(mentions,[]).
+default_info(nsfw,false).
+default_info(permission_overwrites,[]).
+default_info(pinned,false).
+default_info(rate_limit_per_user,0).
+default_info(rtc_region,null).
+default_info(tts,false).
+default_info(type,0).
+default_info(user_limit,0).
+default_info(public_flags,0).
+default_info(email,null).
+default_info(features,[]).
+default_info(messages,[]).
+default_info(owner,false).
+
+
+default_info(X,Y):- default_info_value(Y),!, dmsg(default_info(X,Y)).
+
+default_info_value(null).
+default_info_value(0).
+default_info_value([]).
+default_info_value(false).
+
+
 :- fixup_exports.
 
+
 :- if( \+ prolog_load_context(reloading, true)).
+%:- bot_discord_token(TokenHeader), add_discord_info(token,TokenHeader).
+:- bot_discord_token(TokenHeader), add_discord_info(token,TokenHeader).
+:- get_time(Time), ITime is integer(Time), add_discord_info(time,ITime).
+:- add_discord_info(seq,null).
 :- channels.
 :- endif.
 
