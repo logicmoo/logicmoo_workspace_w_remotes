@@ -64,3 +64,6 @@
 [submodule "packs_sys/logicmoo_lps"]
 	path = packs_sys/logicmoo_lps
 	url = https://github.com/logicmoo/logicmoo_lps
+[submodule "packs_sys/instant_prolog_docs"]
+	path = packs_sys/instant_prolog_docs
+	url = https://github.com/logicmoo/instant_prolog_docs
