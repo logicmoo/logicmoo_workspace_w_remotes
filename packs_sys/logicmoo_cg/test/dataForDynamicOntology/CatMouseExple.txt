@@ -1,7 +1,0 @@
-[Eat]-agnt->[Mammal]
-
-[Eat]-obj->[Mammal]
-
-[Cat]<-agnt-[Eat]-obj->[Mouse]
-
-[Cat]<-agnt-[Hunt]-obj->[Mouse]

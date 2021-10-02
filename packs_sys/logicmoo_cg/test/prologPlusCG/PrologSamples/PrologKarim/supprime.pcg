@@ -1,4 +1,0 @@
-supprime(x,[],[]).
-supprime(x,[x],[]).
-supprime(x,[x|y],r): - supprime(x,y,r).
-supprime(x,[a|y],[a|r]): - supprime(x,y,r).

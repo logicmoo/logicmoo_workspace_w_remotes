@@ -1,3 +1,0 @@
-// Type hierarchy
-Entity > Physical, Abstract.
-Abstract > Point, Line, Circle.

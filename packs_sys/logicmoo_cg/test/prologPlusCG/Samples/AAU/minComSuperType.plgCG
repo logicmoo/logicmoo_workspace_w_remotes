@@ -1,4 +1,0 @@
-// Type hierarchy
-Entity > Animal.
-Animal > Mammal, Bird.
-Mammal > Elephant, Cat.

@@ -1,5 +1,0 @@
-[Begin]-
-    -srce->[Proposition = [Look]-
-                             -dest->[Person],
-                             -pat->[Person ?x]],
-    -agnt->[Man *x]

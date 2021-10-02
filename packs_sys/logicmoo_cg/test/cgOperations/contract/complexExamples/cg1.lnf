@@ -1,4 +1,0 @@
-[Give] -
-    -obj->[Money],
-    -rcpt->[Artist]-attr->[Rich],
-    -agnt->[Man :Karim]-attr->[Rich]

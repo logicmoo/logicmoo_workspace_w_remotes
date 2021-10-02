@@ -1,6 +1,0 @@
-Entity > Animal, Act.
-
-Act = Say.
-
-// An animal is talking to itself.
-SpeechAct([Animal : *1]<-AGNT-[Act : Say]-RCPT->[Animal : *1]).

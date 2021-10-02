@@ -1,1 +1,0 @@
-:- dynamic description/3.

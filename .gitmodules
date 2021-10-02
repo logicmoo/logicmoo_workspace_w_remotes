@@ -16,3 +16,6 @@
 [submodule "packs_sys/pfc"]
 	path = packs_sys/pfc
 	url = https://github.com/logicmoo/pfc
+[submodule "packs_sys/logicmoo_cg"]
+	path = packs_sys/logicmoo_cg
+	url = https://github.com/logicmoo/logicmoo_cg

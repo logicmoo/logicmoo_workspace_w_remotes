@@ -1,9 +1,0 @@
-[Man:karim]-
-	-colorOf->[Color:white],
-	-sizeOf->[Size: big],
-	<-agnt-[Cut]-
-	                -obj->[Apple]-
-		             -colorOf->[Color: yellow],
-		             -attr->[Good];
-	                -instr->[Knife],
-	                -manr->[Strong]

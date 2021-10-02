@@ -1,3 +1,0 @@
-[Drive]-
-   -obj->[Car],
-   -agnt->[Person:{Bob, Andre}]

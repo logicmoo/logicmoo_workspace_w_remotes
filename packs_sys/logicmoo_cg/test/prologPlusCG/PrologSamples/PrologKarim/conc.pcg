@@ -1,3 +1,0 @@
-conc([],A,A).
-
-conc([X|L],Y,[X|Q]) :- conc(L,Y,Q).

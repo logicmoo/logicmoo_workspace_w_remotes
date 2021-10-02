@@ -1,4 +1,0 @@
-:- expects_dialect(swi).
-:- expects_dialect(pfc).
-
-cg(CG)==> test123(CG).

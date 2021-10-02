@@ -1,3 +1,0 @@
-membre(X,[X|Y]).
-
-membre(X,[Y|Z]) :- membre(X,Z).
