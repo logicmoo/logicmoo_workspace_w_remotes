@@ -3,6 +3,8 @@ function MAINTAINER {
    /bin/true
 }
 
+export CLASSPATH=/opt/logicmoo_workspace/packs_sys/slack_prolog/prolog/classes
+
 ECHO=MAINTAINER
 export SWI_TAG=e68098ba2b38d7d9597def1b4fc0a8cef1ed43cb
 
